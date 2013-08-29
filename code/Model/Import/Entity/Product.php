@@ -45,7 +45,43 @@ class Danslo_ApiImport_Model_Import_Entity_Product
              ->_initTypeModels()
              ->_initCategories()
              ->_initSkus()
-             ->_initCustomerGroups();
+             ->_initCustomerGroups()
+             ->_initOldData();
+    }
+
+    /**
+     * When a special import behavior is detected, merge oldSku into new data.
+     * This allows us to only specify the sku during the import, allowing us to skip
+     * specifying attribute sets, website code and product type.
+     * This is ideal for simple updates like stock.
+     *
+     * @return Danslo_ApiImport_Model_Import_Entity_Product
+     */
+    protected function _initOldData()
+    {
+        if ($this->_dataSourceModel->getBehavior() == Danslo_ApiImport_Model_Import::BEHAVIOR_STOCK) {
+            $entities = $this->_dataSourceModel->getEntities();
+            foreach ($entities as $id => $entity) {
+                if (isset($entity[self::COL_SKU]) && isset($this->_oldSku[$entity[self::COL_SKU]])) {
+                    $entities[$id] = $entity + array(
+                        self::COL_TYPE     => $this->_oldSku[$entity[self::COL_SKU]]['type_id'],
+                        self::COL_ATTR_SET => $this->_attrSetIdToName[$this->_oldSku[$entity[self::COL_SKU]]['attr_set_id']]
+                    );
+                }
+            }
+            $this->_dataSourceModel->setEntities($entities);
+        }
+        return $this;
+    }
+
+    /**
+     * Gets the internal category array used for category mapping.
+     *
+     * @return array
+     */
+    public function getCategories()
+    {
+        return $this->_categories;
     }
 
     /**
@@ -109,9 +145,15 @@ class Danslo_ApiImport_Model_Import_Entity_Product
      */
     public function _importData()
     {
-        Mage::dispatchEvent($this->_eventPrefix . '_before_import', array('data_source_model' => $this->_dataSourceModel));
+        Mage::dispatchEvent($this->_eventPrefix . '_before_import', array(
+            'entity_model'      => $this,
+            'data_source_model' => $this->_dataSourceModel
+        ));
         $result = parent::_importData();
-        Mage::dispatchEvent($this->_eventPrefix . '_after_import', array('entities' => $this->_newSku));
+        Mage::dispatchEvent($this->_eventPrefix . '_after_import', array(
+            'entity_model' => $this,
+            'entities'     => $this->_newSku
+        ));
         return $result;
     }
 
