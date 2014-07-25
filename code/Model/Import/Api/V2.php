@@ -24,6 +24,7 @@ class Danslo_ApiImport_Model_Import_Api_V2 extends Danslo_ApiImport_Model_Import
 	 */
 	public function importEntities($entities, $entityType = null, $behavior = null)
 	{
+		#Mage::log(func_get_args(), null, 'sync.log', true);
 		$entities = $this->_prepareEntites($entities);
 		return parent::importEntities($entities, $entityType, $behavior);
 	}
